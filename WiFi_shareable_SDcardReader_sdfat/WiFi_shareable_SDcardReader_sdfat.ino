@@ -1,6 +1,5 @@
 #include <WiFi.h>
 #include <SPI.h>
-#include <SD.h>
 #include <SdFat.h>
 #include <Adafruit_TinyUSB.h>
 #include "CheckAndResponse.h"
@@ -20,8 +19,8 @@ const int _SCK = 6;
 // File system on SD Card
 SdFat sd;
 
-SdFile root;
-SdFile file;
+SdFile rootS;
+SdFile fileS;
 
 // USB Mass Storage object
 Adafruit_USBD_MSC usb_msc;
@@ -36,6 +35,7 @@ bool WEBworking = false;
 void setup()
 {
   pinMode(LED_BUILTIN, OUTPUT);
+  Serial.end();
 
   // Set disk vendor id, product id and revision with string up to 8, 16, 4 characters respectively
   usb_msc.setID("Adafruit", "SD Card", "1.0");
@@ -60,7 +60,7 @@ void setup()
   SPI.setTX(_MOSI);
   SPI.setSCK(_SCK);
   
-  if ( !sd.begin(chipSelect, SD_SCK_MHZ(50)) || !SD.begin(chipSelect))
+  if ( !sd.begin(chipSelect, SD_SCK_MHZ(50)))
   {
     Serial1.println("initialization failed. Things to check:");
     Serial1.println("* is a card inserted?");
@@ -109,30 +109,30 @@ void setup()
 
 void loop() {
   if ( fs_changed )
-  {
-    root.open("/");
+  {/*
+    rootS.open("/");
     Serial1.println("SD contents:");
 
     // Open next file in root.
     // Warning, openNext starts at the current directory position
     // so a rewind of the directory may be required.
-    while ( file.openNext(&root, O_RDONLY) )
+    while ( fileS.openNext(&rootS, O_RDONLY) )
     {
-      file.printFileSize(&Serial1);
+      fileS.printFileSize(&Serial1);
       Serial1.write(' ');
-      file.printName(&Serial1);
-      if ( file.isDir() )
+      fileS.printName(&Serial1);
+      if ( fileS.isDir() )
       {
         // Indicate a directory.
         Serial1.write('/');
       }
       Serial1.println();
-      file.close();
+      fileS.close();
     }
 
-    root.close();
+    rootS.close();
 
-    Serial1.println();
+    Serial1.println();*/
 
     fs_changed = false;
     delay(1000); // refresh every 0.5 second
