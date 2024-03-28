@@ -34,9 +34,6 @@ SdFile fileS;
 // USB Mass Storage object
 Adafruit_USBD_MSC usb_msc;
 
-// Set to true when PC write to flash
-bool fs_changed;
-
 bool USBworking = false;
 bool WEBworking = false;
 
@@ -283,7 +280,7 @@ void loop1() {
           }
           //if the line is blank, the request has ended.
           if (isBlankLine) {
-            for(int i = 0;i < 100;i++){
+            for(int i = 0; i <= 100; i++){
               if (!USBworking){
                 WEBworking = true;
                 digitalWrite(LED_BUILTIN, HIGH);
@@ -293,10 +290,10 @@ void loop1() {
                 break;
               }
               if(i >= 100){
-                Serial1.println("timeout");
+                Serial1.println("Web timeout");
               }
-              Serial1.println("waiting");
-              delay(109);
+              Serial1.println("Web waiting");
+              delay(100);
             }
             break;
           }
@@ -313,7 +310,15 @@ void loop1() {
 int32_t msc_read_cb (uint32_t lba, void* buffer, uint32_t bufsize)
 {
   if(WEBworking){
-    return -1;
+    int i = 0;
+    while(WEBworking){
+      if(i > 100){
+        Serial1.println("USB timeout");
+        return -1; //実行されるとフリーズ
+      }
+      delay(10);
+      i++;
+    }
   }
   USBworking = true;
 
@@ -334,6 +339,17 @@ int32_t msc_read_cb (uint32_t lba, void* buffer, uint32_t bufsize)
 // return number of written bytes (must be multiple of block size)
 int32_t msc_write_cb (uint32_t lba, uint8_t* buffer, uint32_t bufsize)
 {
+  if(WEBworking){
+    int i = 0;
+    while(WEBworking){
+      if(i > 100){
+        Serial1.println("USB timeout");
+        return -1;
+      }
+      delay(10);
+      i++;
+    }
+  }
   USBworking = true;
   
   bool rc;
@@ -362,7 +378,6 @@ void msc_flush_cb (void)
   // clear file system's cache to force refresh
   sd.cacheClear();
 
-  fs_changed = true;
   USBworking = false;
 
   digitalWrite(LED_BUILTIN, LOW);
