@@ -407,6 +407,30 @@ void process_request(WiFiEthernetClient &client,String request){
 }
 #endif
 
+bool wait(){
+  int i = 0;
+  while(USBworking){
+    if(i > 1000){
+      Serial1.println("USB waiting TimeOUT");
+      return false;
+    }
+    delay(10);
+    i++;
+  }
+  return true;
+}
+
+bool sdexists(String sdpath){
+  if(wait()){
+    WEBworking = true;
+    bool result = sd.exists(sdpath);
+    WEBworking = false;
+    return result;
+  }else{
+    return false; //timeout
+  }
+}
+
 void sendHTTP(WiFiEthernetClient& client, const String& request) {
   //Serial1.println("");
   //Serial1.print("path:");
@@ -418,7 +442,7 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
     if (!path.equals("/")) {
       path.remove(path.length() - 1);  //delet last "/"
     }
-    if (sd.exists(path)) {  //check path is exist
+    if (sdexists(path)) {  //check path is exist
       client.println("HTTP/1.1 200 OK");
       client.println("Content-Type: text/html");
       client.println("Connection: close");
@@ -500,35 +524,61 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
       char pathchar[len]; 
       path.toCharArray(pathchar, len);
 
-      root.open(pathchar);
-      //root.getName(char *name, size_t size)
-      while (file.openNext(&root, O_RDONLY)) {
-        char filenamechar[50];
-        file.getName(filenamechar,sizeof(filenamechar));
-        String filename = filenamechar;
-        if (file.isDir()) {
-          filename += "/";
-        }
-        String fileurl = "http://" + IPaddr + urlEncode(path);
-        if (path.equals("/")) {
-          fileurl += urlEncode(filename);
-        } else {
-          fileurl += "/" + urlEncode(filename);
-        }
-        client.print("<p>");
-        client.print("<a href=\"");
-        client.print(fileurl);
-        client.print("\" >");
-        client.print(filename);
-        client.println("</a>");
-        if (!filename.endsWith("/")) {  //display file size
-          client.print(" ");
-          client.println(kmgt(file.fileSize()));
-        }
-        client.println("</p>");
-        file.close();
+      if(wait()){
+        WEBworking = true;
+        root.open(pathchar);
+        WEBworking = false;
+      }else{
+        return;
       }
-      root.close();
+      //root.getName(char *name, size_t size)
+      //while (file.openNext(&root, O_RDONLY)) {
+      while(true){
+        if(wait()){
+          WEBworking = true;
+          if(!file.openNext(&root, O_RDONLY)){
+            WEBworking = false;
+            break;
+          }
+          char filenamechar[200];
+          file.getName(filenamechar,sizeof(filenamechar));
+          String filename = filenamechar;
+          int size;
+          if (file.isDir()) {
+            filename += "/";
+          }else{
+            size = file.fileSize();
+          }
+          WEBworking = false;
+          String fileurl = "http://" + IPaddr + urlEncode(path);
+          if (path.equals("/")) {
+            fileurl += urlEncode(filename);
+          } else {
+            fileurl += "/" + urlEncode(filename);
+          }
+          client.print("<p>");
+          client.print("<a href=\"");
+          client.print(fileurl);
+          client.print("\" >");
+          client.print(filename);
+          client.println("</a>");
+          if (!filename.endsWith("/")) {  //display file size
+            client.print(" ");
+            client.println(kmgt(size));
+          }
+          client.println("</p>");
+          file.close();
+        }else{
+          return; //timeout
+        }
+      }
+      if(wait()){
+        WEBworking = true;
+        root.close();
+        WEBworking = false;
+      }else{
+        return;
+      }
       client.print("<hr>");
       client.print("<p>");
       client.print("Powered by ");
@@ -541,7 +591,7 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
       client.println("Connection: close");
     }
   } else if (!POSTflag) {  //File
-    if (sd.exists(path)) {
+    if (sdexists(path)) {
       Serial1.print("File:");
       Serial1.println(path);
       String extension = getExtension(getFilename(path));

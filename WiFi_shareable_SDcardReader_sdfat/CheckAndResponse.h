@@ -24,6 +24,8 @@
 #include <SPI.h>
 
 extern bool isBlankLine;
+extern bool USBworking;
+extern bool WEBworking;
 
 extern SdFat sd;
 
