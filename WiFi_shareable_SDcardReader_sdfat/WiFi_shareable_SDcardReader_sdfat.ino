@@ -227,7 +227,15 @@ void setup1(){
 }
 
 void loop() {
-
+  if(!led && (USBworking || WEBworking)){
+    digitalWrite(LED_BUILTIN, HIGH);
+    led = true;
+  }
+  else if(led && !USBworking && !WEBworking){
+    digitalWrite(LED_BUILTIN, LOW);
+    led = false;
+  }
+  delay(10);
 }
 
 void readbutton(){
@@ -279,20 +287,16 @@ void loop1() {
           }
           //if the line is blank, the request has ended.
           if (isBlankLine) {
-            for(int i = 0; i <= 100; i++){
+            for(int i = 0; i <= 1000; i++){ //1000*10ms
               if (!USBworking){
-                WEBworking = true;
-                digitalWrite(LED_BUILTIN, HIGH);
                 sendHTTP(client, request);  //send HTTP response
                 WEBworking = false;
-                digitalWrite(LED_BUILTIN, LOW);
                 break;
               }
-              if(i >= 100){
-                Serial1.println("Web timeout");
+              if(i >= 1000){
+                Serial1.println("[Web]timeout in loop");
               }
-              Serial1.println("Web waiting");
-              delay(100);
+              delay(10);
             }
             break;
           }
@@ -308,18 +312,19 @@ void loop1() {
 // return number of copied bytes (must be multiple of block size)
 int32_t msc_read_cb (uint32_t lba, void* buffer, uint32_t bufsize)
 {
+  USBworking = true;
   if(WEBworking){
     int i = 0;
     while(WEBworking){
       if(i > 100){
-        Serial1.println("USB timeout");
+        Serial1.println("[USB]timeout");
+        USBworking = false;
         return -1; //実行されるとフリーズ
       }
       delay(10);
       i++;
     }
   }
-  USBworking = true;
 
   bool rc;
 
@@ -338,22 +343,21 @@ int32_t msc_read_cb (uint32_t lba, void* buffer, uint32_t bufsize)
 // return number of written bytes (must be multiple of block size)
 int32_t msc_write_cb (uint32_t lba, uint8_t* buffer, uint32_t bufsize)
 {
+  USBworking = true;
   if(WEBworking){
     int i = 0;
     while(WEBworking){
       if(i > 100){
-        Serial1.println("USB timeout");
+        Serial1.println("[USB]timeout");
+        USBworking = false;
         return -1;
       }
       delay(10);
       i++;
     }
   }
-  USBworking = true;
   
   bool rc;
-
-  digitalWrite(LED_BUILTIN, HIGH);
 
 #if SD_FAT_VERSION >= 20000
   rc = sd.card()->writeSectors(lba, buffer, bufsize/512);
@@ -378,6 +382,4 @@ void msc_flush_cb (void)
   sd.cacheClear();
 
   USBworking = false;
-
-  digitalWrite(LED_BUILTIN, LOW);
 }

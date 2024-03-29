@@ -411,7 +411,7 @@ bool wait(){
   int i = 0;
   while(USBworking){
     if(i > 1000){
-      Serial1.println("USB waiting TimeOUT");
+      Serial1.println("[WEB]timeout in wait()");
       return false;
     }
     delay(10);
@@ -423,6 +423,8 @@ bool wait(){
 bool sdexists(String sdpath){
   if(wait()){
     WEBworking = true;
+    root.close();
+    file.close();
     bool result = sd.exists(sdpath);
     WEBworking = false;
     return result;
@@ -532,11 +534,11 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
         return;
       }
       //root.getName(char *name, size_t size)
-      //while (file.openNext(&root, O_RDONLY)) {
       while(true){
         if(wait()){
           WEBworking = true;
           if(!file.openNext(&root, O_RDONLY)){
+            root.close();
             WEBworking = false;
             break;
           }
@@ -600,8 +602,15 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
       char pathchar[len]; 
       path.toCharArray(pathchar, len);
 
-      file.open(pathchar);
-      unsigned long filesize = file.fileSize();
+      unsigned long filesize;
+      if(wait()){
+        WEBworking = true;
+        file.open(pathchar);
+        filesize = file.fileSize();
+        WEBworking = false;
+      }else{
+        return;
+      }
       client.println("HTTP/1.1 200 OK");
       client.print("Content-Length: ");
       client.println(filesize);
@@ -616,11 +625,22 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
       //send file to client with 1024 buffer.
       const size_t bufferSize = 1024;  //buffer size
       byte buffe[bufferSize];          //buffe
-      while (file.available()) {
-        size_t bytesRead = file.read(buffe, bufferSize);
-        client.write(buffe, bytesRead);
+      while(true){
+        if(wait){
+          WEBworking = true;
+          if(!file.available()){
+            file.close();
+            WEBworking = false;
+            break;
+          }else{
+            size_t bytesRead = file.read(buffe, bufferSize);
+            WEBworking = false;
+            client.write(buffe, bytesRead);
+          }
+        }else{
+          return;
+        }
       }
-      file.close();
     } else {  //File not Found
       client.println("HTTP/1.1 404 Not Found");
       client.println("Connection: close");
