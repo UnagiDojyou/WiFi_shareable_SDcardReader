@@ -12,6 +12,7 @@ const char* wifi_config = "/WiFi.txt";
 bool softap = true;
 bool led = false;
 int APcount = 0;
+bool startupAP = false;
 
 char baseMacChr[18] = {0};
 
@@ -191,11 +192,10 @@ void setup1(){
     digitalWrite(LED_BUILTIN, LOW);
     Serial1.println("");
     Serial1.println("WiFi connected.");
-    Serial1.print("IP is ");
-    Serial1.println(WiFi.localIP());
     server.begin();  //start the server
     Serial1.print("\nHTTP server started at: ");
     Serial1.println(WiFi.localIP());
+    startupAP = true;
   }else{
     //Setup SoftAP mode
     softap = true;
@@ -227,15 +227,17 @@ void setup1(){
 }
 
 void loop() {
-  if(!led && (USBworking || WEBworking)){
-    digitalWrite(LED_BUILTIN, HIGH);
-    led = true;
+  if(startupAP){
+    if(!led && (USBworking || WEBworking)){
+      digitalWrite(LED_BUILTIN, HIGH);
+      led = true;
+    }
+    else if(led && !USBworking && !WEBworking){
+      digitalWrite(LED_BUILTIN, LOW);
+      led = false;
+    }
+    delay(10);
   }
-  else if(led && !USBworking && !WEBworking){
-    digitalWrite(LED_BUILTIN, LOW);
-    led = false;
-  }
-  delay(10);
 }
 
 void readbutton(){
