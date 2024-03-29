@@ -118,7 +118,7 @@ void setup()
   usb_msc.setUnitReady(false);
   usb_msc.begin();
 
-  Serial1.println("Adafruit TinyUSB Mass Storage SD Card example");
+  Serial1.println("WiFi shareable SDcard Reader");
 
   Serial1.print("\nInitializing SD card ... ");
   Serial1.print("CS = "); Serial1.println(chipSelect);
@@ -180,11 +180,10 @@ void setup1(){
       delay(1000); //1sencods
       readbutton();
       Serial1.print(".");
-      if(!led){
+      if(!led && !USBworking){
         digitalWrite(LED_BUILTIN, HIGH);
         led = true;
-      }
-      else{
+      }else if(!USBworking){
         digitalWrite(LED_BUILTIN, LOW);
         led = false;
       }
@@ -255,11 +254,11 @@ void loop1() {
     APcount++;
     delay(1);
     if(APcount > 300){//about 0.3seconds
-      if(!led){
+      if(!led && !USBworking){
         digitalWrite(LED_BUILTIN, HIGH);
         led = true;
       }
-      else{
+      else if(!USBworking){
         digitalWrite(LED_BUILTIN, LOW);
         led = false;
       }
