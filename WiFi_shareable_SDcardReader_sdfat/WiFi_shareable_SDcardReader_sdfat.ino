@@ -326,6 +326,7 @@ int32_t msc_read_cb (uint32_t lba, void* buffer, uint32_t bufsize)
       delay(10);
       i++;
     }
+    delay(10);
   }
 
   bool rc;
@@ -336,7 +337,11 @@ int32_t msc_read_cb (uint32_t lba, void* buffer, uint32_t bufsize)
   rc = sd.card()->readBlocks(lba, (uint8_t*) buffer, bufsize/512);
 #endif
 
+  //Serial1.print("R");
+  //Serial1.println(rc);
+
   USBworking = false;
+
   return rc ? bufsize : -1;
 }
 
@@ -367,6 +372,9 @@ int32_t msc_write_cb (uint32_t lba, uint8_t* buffer, uint32_t bufsize)
   rc = sd.card()->writeBlocks(lba, buffer, bufsize/512);
 #endif
 
+  //Serial1.print("W");
+  //Serial1.println(rc);
+  
   return rc ? bufsize : -1;
 }
 

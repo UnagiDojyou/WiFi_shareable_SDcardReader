@@ -410,8 +410,12 @@ void process_request(WiFiEthernetClient &client,String request){
 bool wait(){
   int i = 0;
   while(USBworking){
+    //Serial1.println("[WEB]waiting");
     if(i > 1000){
       Serial1.println("[WEB]timeout in wait()");
+#ifndef readonly
+      errormessage = "USB is busy.";
+#endif
       return false;
     }
     delay(10);
@@ -626,7 +630,7 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
       const size_t bufferSize = 1024;  //buffer size
       byte buffe[bufferSize];          //buffe
       while(true){
-        if(wait){
+        if(wait()){
           WEBworking = true;
           if(!file.available()){
             file.close();
