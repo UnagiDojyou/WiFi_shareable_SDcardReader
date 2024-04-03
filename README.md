@@ -1,5 +1,5 @@
 # WiFi_shareable_SDcardReader_RaspberryPiPicoW
-Make Raspberry Pi Pico W work as a USB SD card reader. In addition, you can also view and edit the content on the SD card from other devices via a browser using WiFi.
+Make Raspberry Pi Pico W work as a USB SDcard reader. At the same time, you can also view and edit the content on the SD card from other devices via a browser using WiFi.
 
 ## Feature
 * Supports simultaneous access via browser and USB.
