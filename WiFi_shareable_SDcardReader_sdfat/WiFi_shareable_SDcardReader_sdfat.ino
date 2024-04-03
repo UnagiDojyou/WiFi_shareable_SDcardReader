@@ -321,7 +321,7 @@ int32_t msc_read_cb (uint32_t lba, void* buffer, uint32_t bufsize)
       if(i > 100){
         Serial1.println("[USB]timeout");
         USBworking = false;
-        return -1; //実行されるとフリーズ
+        return -1;
       }
       delay(10);
       i++;
@@ -337,8 +337,10 @@ int32_t msc_read_cb (uint32_t lba, void* buffer, uint32_t bufsize)
   rc = sd.card()->readBlocks(lba, (uint8_t*) buffer, bufsize/512);
 #endif
 
-  //Serial1.print("R");
-  //Serial1.println(rc);
+  if(!rc){
+    Serial1.print("R");
+    Serial1.println(rc);
+  }
 
   USBworking = false;
 
@@ -372,8 +374,10 @@ int32_t msc_write_cb (uint32_t lba, uint8_t* buffer, uint32_t bufsize)
   rc = sd.card()->writeBlocks(lba, buffer, bufsize/512);
 #endif
 
-  //Serial1.print("W");
-  //Serial1.println(rc);
+  if(!rc){
+    Serial1.print("W");
+    Serial1.println(rc);
+  }
   
   return rc ? bufsize : -1;
 }

@@ -542,6 +542,7 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
         if(wait()){
           WEBworking = true;
           if(!file.openNext(&root, O_RDONLY)){
+            file.close();
             root.close();
             WEBworking = false;
             break;
@@ -555,6 +556,7 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
           }else{
             size = file.fileSize();
           }
+          file.close();
           WEBworking = false;
           String fileurl = "http://" + IPaddr + urlEncode(path);
           if (path.equals("/")) {
@@ -573,7 +575,6 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
             client.println(kmgt(size));
           }
           client.println("</p>");
-          file.close();
         }else{
           return; //timeout
         }
@@ -632,7 +633,7 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
       while(true){
         if(wait()){
           WEBworking = true;
-          if(!file.available()){
+          if(!file.available() || !client.connected()){
             file.close();
             WEBworking = false;
             break;
