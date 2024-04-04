@@ -41,9 +41,9 @@ Linux&MAC : `arp -a | grep XX:XX:XX:XX:XX:XX`<br>
 11. Access that IP address in your browser.
 
 ### Reset WiFi Setting
-Please try reboot (unplugging the power) first.
-Press and hold the BOOTSEL button for more than 5 seconds.<br>
-After that, please reboot the Raspberry Pi Pico (reconnect the power supply).
+0. Please try reboot (unplugging the power) first.
+1. Press and hold the BOOTSEL button for more than 5 seconds.
+2. After that, please reboot the Raspberry Pi Pico (reconnect the power supply).
 
 ## LED status
 ### Blink quickly
@@ -56,5 +56,5 @@ Shows access.
 ## Related projects
 This WiFi_shareable_SDcardReader_RaspberryPiPicoW is made up of
 * [ArduinoIDE_SD_FAT32_Fileserver](https://github.com/UnagiDojyou/ArduinoIDE_SD_FAT32_Fileserver)
-* Captive portal WiFi connector
+* [ArduinoIDE_Captive_Portal_WiFi_configure](https://github.com/UnagiDojyou/ArduinoIDE_Captive_Portal_WiFi_configure)
 * [Adafruit_TinyUSB_Arduino msc_sdfat.ino](https://github.com/adafruit/Adafruit_TinyUSB_Arduino/blob/e2918652339aa3986f66b32c0a592c1aa72aabc8/examples/MassStorage/msc_sdfat/msc_sdfat.ino)
