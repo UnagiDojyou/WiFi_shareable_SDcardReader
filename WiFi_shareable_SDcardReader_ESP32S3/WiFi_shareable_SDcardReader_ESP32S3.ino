@@ -5,7 +5,7 @@
 #include <SD.h>
 #include <sd_diskio.h>
 #include <USB.h>
-#include <USBMSC.h>
+#include "USBMSC.h"
 #include <WiFi.h>
 #include "CheckAndResponse.h"
 #include <esp_system.h>
@@ -15,7 +15,6 @@
 #include <esp32-hal-tinyusb.h>
 
 #define BOOT_SW 0
-#define RESET_USB_LENGTH 2000  //ms
 
 CPWiFiConfigure CPWiFi(BOOT_SW, LED_BUILTIN, Serial);
 WiFiServer server(80);
@@ -157,8 +156,11 @@ void loop() {
   CheckAndResponse(client);
   if (POSTflagd && (updateCount >= UINT16_MAX)) {
     msc.mediaPresent(false);
+    media_present_accessed = false;
     Serial.println("reset USB");
-    delay(RESET_USB_LENGTH);
+    while (!media_present_accessed) {
+      delay(1);
+    }
     msc.mediaPresent(true);
     POSTflagd = false;
     updateCount = 0;
