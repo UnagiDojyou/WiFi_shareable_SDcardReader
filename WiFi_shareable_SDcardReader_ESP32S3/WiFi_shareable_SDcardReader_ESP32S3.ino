@@ -12,18 +12,20 @@
 #include <Captive_Portal_WiFi_connector.h>
 #include <LittleFS.h>
 #include <FS.h>
-#include <ESPWebDAV.h>
+#include <esp32-hal-tinyusb.h>
 
 #define BOOT_SW 0
+#define RESET_USB_LENGTH 2000  //ms
 
 CPWiFiConfigure CPWiFi(BOOT_SW, LED_BUILTIN, Serial);
-WiFiServer tcp(80);
-WiFiServer server(8080);
-ESPWebDAV dav;
+WiFiServer server(80);
 USBMSC msc;
-FS& gfs = SD;
+
+uint16_t updateCount = 0;
+bool POSTflagd = false;
 
 static int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t *buffer, uint32_t bufsize) {
+  updateCount = 0;
   uint32_t secSize = SD.sectorSize();
   if (!secSize) {
     return false;  // disk error
@@ -40,6 +42,7 @@ static int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t *buffer, uint32_t 
 }
 
 static int32_t onRead(uint32_t lba, uint32_t offset, void *buffer, uint32_t bufsize) {
+  updateCount = 0;
   uint32_t secSize = SD.sectorSize();
   if (!secSize) {
     return false;  // disk error
@@ -65,7 +68,7 @@ static void usbEventCallback(void *arg, esp_event_base_t event_base, int32_t eve
       case ARDUINO_USB_STARTED_EVENT: Serial.println("USB PLUGGED"); break;
       case ARDUINO_USB_STOPPED_EVENT: Serial.println("USB UNPLUGGED"); break;
       case ARDUINO_USB_SUSPEND_EVENT: Serial.printf("USB SUSPENDED: remote_wakeup_en: %u\n", data->suspend.remote_wakeup_en); break;
-      case ARDUINO_USB_RESUME_EVENT:  Serial.println("USB RESUMED"); break;
+      case ARDUINO_USB_RESUME_EVENT: Serial.println("USB RESUMED"); break;
 
       default: break;
     }
@@ -95,7 +98,6 @@ void setup() {
   msc.begin(SD.numSectors(), SD.sectorSize());
   USB.begin();
   USB.onEvent(usbEventCallback);
-  
 }
 
 bool first = true;
@@ -143,9 +145,7 @@ void startWiFi() {
 void loop() {
   if (first) {
     startWiFi();
-    server.begin(); //start the server
-    tcp.begin();
-    dav.begin(&tcp, &gfs);
+    server.begin();  //start the server
     Serial.print("\nHTTP server started at: ");
     Serial.println(WiFi.localIP());
     first = false;
@@ -153,7 +153,16 @@ void loop() {
   if (CPWiFi.readButton()) {
     ESP.restart();
   }
-  dav.handleClient();
   WiFiClient client = server.available();
   CheckAndResponse(client);
+  if (POSTflagd && (updateCount >= UINT16_MAX)) {
+    msc.mediaPresent(false);
+    Serial.println("reset USB");
+    delay(RESET_USB_LENGTH);
+    msc.mediaPresent(true);
+    POSTflagd = false;
+    updateCount = 0;
+  } else if (updateCount < UINT16_MAX) {
+    updateCount++;
+  }
 }

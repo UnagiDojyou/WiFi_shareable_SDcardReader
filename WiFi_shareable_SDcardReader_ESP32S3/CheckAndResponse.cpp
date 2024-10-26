@@ -255,6 +255,7 @@ void process_request(WiFiEthernetClient& client, String request) {
     path.replace(" HTTP/1.1", "");
     path = urlDecode(path);  //decode%
     POSTflag = true;
+    POSTflagd = true;
     Uploadflag = false;
   } else if (request.startsWith("Content-Length") && POSTflag) {
     //Serial.print("Content-Length:");

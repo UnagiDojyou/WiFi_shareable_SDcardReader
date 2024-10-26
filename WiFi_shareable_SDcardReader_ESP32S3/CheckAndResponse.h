@@ -24,8 +24,9 @@
 #include <SD.h>
 #include <SPI.h>
 
-bool CheckAndResponse(WiFiEthernetClient &client);
+extern bool POSTflagd;
 
+bool CheckAndResponse(WiFiEthernetClient &client);
 
 void process_request(WiFiEthernetClient& client, String request);
 
