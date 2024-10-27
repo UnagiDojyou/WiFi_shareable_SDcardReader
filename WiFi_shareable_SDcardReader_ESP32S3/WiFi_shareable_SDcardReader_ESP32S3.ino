@@ -14,6 +14,8 @@
 #include <FS.h>
 #include <esp32-hal-tinyusb.h>
 
+// #define NO_USB_REFLESH // if you don't need USB refresh (storage reloading and force reload file list), enable this.
+#define RESET_USB_LENGTH 2000  //ms
 #define BOOT_SW 0
 
 CPWiFiConfigure CPWiFi(BOOT_SW, LED_BUILTIN, Serial);
@@ -64,7 +66,10 @@ static void usbEventCallback(void *arg, esp_event_base_t event_base, int32_t eve
   if (event_base == ARDUINO_USB_EVENTS) {
     arduino_usb_event_data_t *data = (arduino_usb_event_data_t *)event_data;
     switch (event_id) {
-      case ARDUINO_USB_STARTED_EVENT: Serial.println("USB PLUGGED"); break;
+      case ARDUINO_USB_STARTED_EVENT:
+        Serial.println("USB PLUGGED");
+        POSTflagd = false;
+        break;
       case ARDUINO_USB_STOPPED_EVENT: Serial.println("USB UNPLUGGED"); break;
       case ARDUINO_USB_SUSPEND_EVENT: Serial.printf("USB SUSPENDED: remote_wakeup_en: %u\n", data->suspend.remote_wakeup_en); break;
       case ARDUINO_USB_RESUME_EVENT: Serial.println("USB RESUMED"); break;
@@ -141,6 +146,9 @@ void startWiFi() {
   Serial.println(WiFi.localIP());
 }
 
+bool wait_media_present_accessed = false;
+bool mediaPresent = true;
+
 void loop() {
   if (first) {
     startWiFi();
@@ -154,17 +162,31 @@ void loop() {
   }
   WiFiClient client = server.available();
   CheckAndResponse(client);
-  if (POSTflagd && (updateCount >= UINT16_MAX)) {
-    msc.mediaPresent(false);
-    media_present_accessed = false;
-    Serial.println("reset USB");
-    while (!media_present_accessed) {
-      delay(1);
+
+#ifndef NO_USB_REFLESH
+  if (updateCount >= UINT16_MAX && POSTflagd) {
+    if (!wait_media_present_accessed) {                   // first
+      media_present_accessed = false;                     // when accessed, automaticly true.
+      wait_media_present_accessed = true;                 // flag of waiting media_present_accessed to be high
+    } else if (media_present_accessed && mediaPresent) {  // second
+      msc.mediaPresent(false);
+      mediaPresent = false;
+      Serial.println("reset USB");
+      media_present_accessed = false;
+    } else if (media_present_accessed && !mediaPresent) {  // third
+      delay(RESET_USB_LENGTH);
+      msc.mediaPresent(true);
+      mediaPresent = true;
+      wait_media_present_accessed = false;
+      POSTflagd = false;
+      updateCount = 0;
     }
-    msc.mediaPresent(true);
-    POSTflagd = false;
-    updateCount = 0;
   } else if (updateCount < UINT16_MAX) {
     updateCount++;
+    if (POSTflagd && !mediaPresent) {
+      media_present_accessed = true;
+      wait_media_present_accessed = false;
+    }
   }
+#endif
 }

@@ -80,7 +80,7 @@ bool media_present_accessed = false;
 // return true allowing host to read/write this LUN e.g SD card inserted
 // modified by unagidojyou
 bool tud_msc_test_unit_ready_cb(uint8_t lun) {
-  log_v("[%u]: %u", lun, msc_luns[lun].media_present);
+  log_i("[%u]: %u", lun, msc_luns[lun].media_present);
   media_present_accessed = true;
   return msc_luns[lun].media_present;  // RAM disk is always ready
 }
