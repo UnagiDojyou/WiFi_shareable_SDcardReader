@@ -1,5 +1,28 @@
+// ---------------user definition----------------------
+/*
+  What is USB_REFRESH?
+USB_REFRESH disconnects the storage from the host for a moment.
+When USB is connected to Windows and you change files via WiFi, the changes are not applied to the Windows side.
+Becase of Windows has cache of file list. When the storage is reconnected, Windows refresh cache. So, USB_REFRESH is need.
+
+If neither SCSI_REFRESH nor USB_REFRESH is selected, no USB_REFRESH is occur.
+*/
+#define SCSI_REFRESH // (recommend) Temporarily disconnect the SCSI storage.
+// #define USB_REFRESH  // Temporarily disable the USB.
+
+#define REFRESH_TIME_LENGTH 2000  // length of disconnection time (ms)
+
+#define WIFI_BUTTON 0  // GPIO of WiFi reset button
+
+#define WIFI_LED 38
+// --------------------------------------------------
+
 #if !SOC_USB_OTG_SUPPORTED || ARDUINO_USB_MODE
 #error Device does not support USB_OTG or native USB CDC/JTAG is selected
+#endif
+
+#if defined SCSI_REFRESH && defined USB_REFRESH
+#error Please select only one of SCSI_REFRESH and USB_REFRESH.
 #endif
 
 #include <SD.h>
@@ -14,11 +37,7 @@
 #include <FS.h>
 #include <esp32-hal-tinyusb.h>
 
-// #define NO_USB_REFLESH // if you don't need USB refresh (storage reloading and force reload file list), enable this.
-#define RESET_USB_LENGTH 2000  //ms
-#define BOOT_SW 0
-
-CPWiFiConfigure CPWiFi(BOOT_SW, LED_BUILTIN, Serial);
+CPWiFiConfigure CPWiFi(WIFI_BUTTON, WIFI_LED, Serial);
 WiFiServer server(80);
 USBMSC msc;
 
@@ -83,6 +102,10 @@ static void usbEventCallback(void *arg, esp_event_base_t event_base, int32_t eve
 void setup() {
   Serial.begin(115200);
   Serial.println("Starting Serial");
+
+  #ifdef USB_REFRESH
+  delay(REFRESH_TIME_LENGTH);
+  #endif
 
   Serial.println("Mounting SDcard");
   if (!SD.begin()) {
@@ -163,7 +186,7 @@ void loop() {
   WiFiClient client = server.available();
   CheckAndResponse(client);
 
-#ifndef NO_USB_REFLESH
+#ifdef SCSI_REFRESH
   if (updateCount >= UINT16_MAX && POSTflagd) {
     if (!wait_media_present_accessed) {                   // first
       media_present_accessed = false;                     // when accessed, automaticly true.
@@ -174,12 +197,28 @@ void loop() {
       Serial.println("reset USB");
       media_present_accessed = false;
     } else if (media_present_accessed && !mediaPresent) {  // third
-      delay(RESET_USB_LENGTH);
+      delay(REFRESH_TIME_LENGTH);
       msc.mediaPresent(true);
       mediaPresent = true;
       wait_media_present_accessed = false;
       POSTflagd = false;
       updateCount = 0;
+    }
+  } else if (updateCount < UINT16_MAX) {
+    updateCount++;
+    if (POSTflagd && !mediaPresent) {
+      media_present_accessed = true;
+      wait_media_present_accessed = false;
+    }
+  }
+#endif
+#ifdef USB_REFRESH
+  if ((updateCount >= UINT16_MAX) && POSTflagd) {
+    if (!wait_media_present_accessed) {                   // first
+      media_present_accessed = false;                     // when accessed, automaticly true.
+      wait_media_present_accessed = true;                 // flag of waiting media_present_accessed to be high
+    } else if (media_present_accessed && mediaPresent) {  // second
+      ESP.restart();
     }
   } else if (updateCount < UINT16_MAX) {
     updateCount++;
