@@ -14,8 +14,9 @@ If neither SCSI_REFRESH nor USB_REFRESH is selected, no USB_REFRESH is occur.
 
 #define WIFI_BUTTON 0  // GPIO of WiFi reset button
 
-#define WIFI_LED 38
-// --------------------------------------------------
+#define WIFI_LED 48
+#define SD_LED 48
+// -----------------------------------------------------
 
 #if !SOC_USB_OTG_SUPPORTED || ARDUINO_USB_MODE
 #error Device does not support USB_OTG or native USB CDC/JTAG is selected
@@ -98,21 +99,10 @@ static void usbEventCallback(void *arg, esp_event_base_t event_base, int32_t eve
   }
 }
 
-// the setup function runs once when you press reset or power the board
-void setup() {
-  Serial.begin(115200);
-  Serial.println("Starting Serial");
-
-  #ifdef USB_REFRESH
+void startUSB(void *pvParameters) {
+#ifdef USB_REFRESH
   delay(REFRESH_TIME_LENGTH);
-  #endif
-
-  Serial.println("Mounting SDcard");
-  if (!SD.begin()) {
-    Serial.println("Mount Failed");
-    return;
-  }
-
+#endif
   Serial.println("Initializing MSC");
   // Initialize USB metadata and callbacks for MSC (Mass Storage Class)
   msc.vendorID("ESP32");
@@ -123,11 +113,11 @@ void setup() {
   msc.onStartStop(onStartStop);
   msc.mediaPresent(true);
   msc.begin(SD.numSectors(), SD.sectorSize());
+  POSTflagd = false;
   USB.begin();
   USB.onEvent(usbEventCallback);
+  vTaskDelete(NULL);
 }
-
-bool first = true;
 
 void startWiFi() {
   sprintf(CPWiFi.boardName, "ESP32");
@@ -169,17 +159,40 @@ void startWiFi() {
   Serial.println(WiFi.localIP());
 }
 
+// the setup function runs once when you press reset or power the board
+void setup() {
+  Serial.begin(115200);
+  Serial.println("Starting Serial");
+
+  pinMode(WIFI_LED, OUTPUT);
+  pinMode(SD_LED, OUTPUT);
+
+  Serial.println("Mounting SDcard");
+  if (!SD.begin()) {
+    Serial.println("Mount Failed");
+    uint8_t count = 0;
+    while (count < 100) {
+      digitalWrite(SD_LED, HIGH);
+      delay(500);
+      digitalWrite(SD_LED, LOW);
+      delay(500);
+      count++;
+    }
+    ESP.restart();
+  }
+
+  xTaskCreate(startUSB, "startUSB", 4096, NULL, 2, NULL);
+
+  startWiFi();
+  server.begin();  //start the server
+  Serial.print("\nHTTP server started at: ");
+  Serial.println(WiFi.localIP());
+}
+
 bool wait_media_present_accessed = false;
 bool mediaPresent = true;
 
 void loop() {
-  if (first) {
-    startWiFi();
-    server.begin();  //start the server
-    Serial.print("\nHTTP server started at: ");
-    Serial.println(WiFi.localIP());
-    first = false;
-  }
   if (CPWiFi.readButton()) {
     ESP.restart();
   }
