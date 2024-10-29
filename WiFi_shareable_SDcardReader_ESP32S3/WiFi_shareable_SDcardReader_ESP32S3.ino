@@ -16,6 +16,9 @@ If neither SCSI_REFRESH nor USB_REFRESH is selected, no USB_REFRESH is occur.
 
 #define WIFI_LED 48
 #define SD_LED 48
+
+#define CP_BOARDNAME "shareable SDcardReader"
+#define CP_HTMLTITLE "WiFi Setting"
 // -----------------------------------------------------
 
 #if !SOC_USB_OTG_SUPPORTED || ARDUINO_USB_MODE
@@ -27,7 +30,6 @@ If neither SCSI_REFRESH nor USB_REFRESH is selected, no USB_REFRESH is occur.
 #endif
 
 #include <SD.h>
-#include <sd_diskio.h>
 #include <USB.h>
 #include "USBMSC.h"
 #include <WiFi.h>
@@ -35,8 +37,6 @@ If neither SCSI_REFRESH nor USB_REFRESH is selected, no USB_REFRESH is occur.
 #include <esp_system.h>
 #include <Captive_Portal_WiFi_connector.h>
 #include <LittleFS.h>
-#include <FS.h>
-#include <esp32-hal-tinyusb.h>
 
 CPWiFiConfigure CPWiFi(WIFI_BUTTON, WIFI_LED, Serial);
 WiFiServer server(80);
@@ -120,8 +120,8 @@ void startUSB(void *pvParameters) {
 }
 
 void startWiFi() {
-  sprintf(CPWiFi.boardName, "ESP32");
-  sprintf(CPWiFi.htmlTitle, "Capitive_Portal_WiFi_configure sample code on ESP32");
+  sprintf(CPWiFi.boardName, CP_BOARDNAME);
+  sprintf(CPWiFi.htmlTitle, CP_HTMLTITLE);
   if (!LittleFS.begin(true)) {
     Serial.println("Fail to start LittleFS");
   }
@@ -143,15 +143,15 @@ void startWiFi() {
     }
     Serial.print(".");
     if (!led) {
-      digitalWrite(LED_BUILTIN, HIGH);
+      digitalWrite(WIFI_LED, HIGH);
       led = true;
     } else {
-      digitalWrite(LED_BUILTIN, LOW);
+      digitalWrite(WIFI_LED, LOW);
       led = false;
     }
     count++;
   }
-  digitalWrite(LED_BUILTIN, LOW);
+  digitalWrite(WIFI_LED, LOW);
   led = false;
   Serial.println("");
   Serial.println("WiFi connected.");

@@ -2,13 +2,14 @@
 #define CHECHANDRESPONSE_H
 
 //you could chose readwrite\readonly
-#define readonly
+#define readwrite
 
 //you could chose UseWiFi/UseEthernet
 #define UseWiFi
 
 //Enable/Disable Rename
 #define EnableRename
+
 
 #ifdef UseWiFi
   #include <WiFi.h>
@@ -23,10 +24,6 @@
 #include <SdFat.h>
 #include <SPI.h>
 
-extern bool isBlankLine;
-extern bool USBworking;
-extern bool WEBworking;
-
 extern SdFat sd;
 
 bool CheckAndResponse(WiFiEthernetClient &client);
@@ -35,7 +32,7 @@ bool CheckAndResponse(WiFiEthernetClient &client);
 void process_request(WiFiEthernetClient& client, String request);
 
 void sendHTTP(WiFiEthernetClient& client, const String& request);
-
+/*
 bool checkfilename(String checkstr);
 
 String kmgt(unsigned long bytes);
@@ -53,6 +50,6 @@ String processReequest(char c);
 String urlEncode(String str);
 
 String urlDecode(String str);
-
+*/
 
 #endif
