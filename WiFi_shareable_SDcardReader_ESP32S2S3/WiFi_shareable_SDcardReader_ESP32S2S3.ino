@@ -20,7 +20,7 @@ If neither SCSI_REFRESH nor USB_REFRESH is selected, no USB_REFRESH is occur.
 #define WIFI_LED 48
 #define SD_LED 48
 
-#define CP_BOARDNAME "shareable SDcardReader"
+#define CP_BOARDNAME "shareableSDReader"
 #define CP_HTMLTITLE "WiFi Setting"
 // -----------------------------------------------------
 
@@ -108,6 +108,8 @@ void startUSB(void *pvParameters) {
 #endif
   Serial.println("Initializing MSC");
   // Initialize USB metadata and callbacks for MSC (Mass Storage Class)
+  USB.usbPower(100);     // 100mA
+  USB.usbAttributes(0);  // no Self powered
   msc.vendorID("ESP32");
   msc.productID("USB_MSC");
   msc.productRevision("1.0");

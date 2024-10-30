@@ -8,7 +8,7 @@
 #define WIFI_LED LED_BUILTIN
 #define SD_LED LED_BUILTIN
 
-#define CP_BOARDNAME "shareable SDcardReader"
+#define CP_BOARDNAME "shareableSDReader"
 #define CP_HTMLTITLE "WiFi Setting"
 // -----------------------------------------------------
 
