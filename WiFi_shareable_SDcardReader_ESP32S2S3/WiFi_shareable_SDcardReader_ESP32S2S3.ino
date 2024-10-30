@@ -1,3 +1,6 @@
+// For ESP32 S2 and ESP32 S3
+// UnagiDojyou https://unagidojyou.com
+
 // ---------------user definition----------------------
 /*
   What is USB_REFRESH?

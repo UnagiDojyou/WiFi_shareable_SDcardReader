@@ -316,10 +316,7 @@ void process_request(WiFiEthernetClient& client, String request) {
       String filename = path + request;
       //setting upload file
       newfilename = path + newfilename;
-      int len = path.length() + 1; //string to char
-      char pathchar[len];
-      path.toCharArray(pathchar, len);
-      file.open(pathchar);
+      File file = file.open(newfilename, FILE_WRITE);
       while (client.available()) {
         char c = client.read();
         //Serial1.write(c);
@@ -410,6 +407,36 @@ void process_request(WiFiEthernetClient &client,String request){
 }
 #endif
 
+bool wait(){
+  int i = 0;
+  while(USBworking){
+    //Serial1.println("[WEB]waiting");
+    if(i > 1000){
+      Serial1.println("[WEB]timeout in wait()");
+#ifndef readonly
+      errormessage = "USB is busy.";
+#endif
+      return false;
+    }
+    delay(10);
+    i++;
+  }
+  return true;
+}
+
+bool sdexists(String sdpath){
+  if(wait()){
+    WEBworking = true;
+    root.close();
+    file.close();
+    bool result = sd.exists(sdpath);
+    WEBworking = false;
+    return result;
+  }else{
+    return false; //timeout
+  }
+}
+
 void sendHTTP(WiFiEthernetClient& client, const String& request) {
   //Serial1.println("");
   //Serial1.print("path:");
@@ -421,7 +448,7 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
     if (!path.equals("/")) {
       path.remove(path.length() - 1);  //delet last "/"
     }
-    if (sd.exists(path)) {  //check path is exist
+    if (sdexists(path)) {  //check path is exist
       client.println("HTTP/1.1 200 OK");
       client.println("Content-Type: text/html");
       client.println("Connection: close");
@@ -503,35 +530,62 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
       char pathchar[len]; 
       path.toCharArray(pathchar, len);
 
-      root.open(pathchar);
-      //root.getName(char *name, size_t size)
-      while (file.openNext(&root, O_RDONLY)) {
-        char filenamechar[50];
-        file.getName(filenamechar,sizeof(filenamechar));
-        String filename = filenamechar;
-        if (file.isDir()) {
-          filename += "/";
-        }
-        String fileurl = "http://" + IPaddr + urlEncode(path);
-        if (path.equals("/")) {
-          fileurl += urlEncode(filename);
-        } else {
-          fileurl += "/" + urlEncode(filename);
-        }
-        client.print("<p>");
-        client.print("<a href=\"");
-        client.print(fileurl);
-        client.print("\" >");
-        client.print(filename);
-        client.println("</a>");
-        if (!filename.endsWith("/")) {  //display file size
-          client.print(" ");
-          client.println(kmgt(file.fileSize()));
-        }
-        client.println("</p>");
-        file.close();
+      if(wait()){
+        WEBworking = true;
+        root.open(pathchar);
+        WEBworking = false;
+      }else{
+        return;
       }
-      root.close();
+      //root.getName(char *name, size_t size)
+      while(true){
+        if(wait()){
+          WEBworking = true;
+          if(!file.openNext(&root, O_RDONLY)){
+            file.close();
+            root.close();
+            WEBworking = false;
+            break;
+          }
+          char filenamechar[200];
+          file.getName(filenamechar,sizeof(filenamechar));
+          String filename = filenamechar;
+          int size;
+          if (file.isDir()) {
+            filename += "/";
+          }else{
+            size = file.fileSize();
+          }
+          file.close();
+          WEBworking = false;
+          String fileurl = "http://" + IPaddr + urlEncode(path);
+          if (path.equals("/")) {
+            fileurl += urlEncode(filename);
+          } else {
+            fileurl += "/" + urlEncode(filename);
+          }
+          client.print("<p>");
+          client.print("<a href=\"");
+          client.print(fileurl);
+          client.print("\" >");
+          client.print(filename);
+          client.println("</a>");
+          if (!filename.endsWith("/")) {  //display file size
+            client.print(" ");
+            client.println(kmgt(size));
+          }
+          client.println("</p>");
+        }else{
+          return; //timeout
+        }
+      }
+      if(wait()){
+        WEBworking = true;
+        root.close();
+        WEBworking = false;
+      }else{
+        return;
+      }
       client.print("<hr>");
       client.print("<p>");
       client.print("Powered by ");
@@ -544,7 +598,7 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
       client.println("Connection: close");
     }
   } else if (!POSTflag) {  //File
-    if (sd.exists(path)) {
+    if (sdexists(path)) {
       Serial1.print("File:");
       Serial1.println(path);
       String extension = getExtension(getFilename(path));
@@ -553,8 +607,15 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
       char pathchar[len]; 
       path.toCharArray(pathchar, len);
 
-      file.open(pathchar);
-      unsigned long filesize = file.fileSize();
+      unsigned long filesize;
+      if(wait()){
+        WEBworking = true;
+        file.open(pathchar);
+        filesize = file.fileSize();
+        WEBworking = false;
+      }else{
+        return;
+      }
       client.println("HTTP/1.1 200 OK");
       client.print("Content-Length: ");
       client.println(filesize);
@@ -569,11 +630,22 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
       //send file to client with 1024 buffer.
       const size_t bufferSize = 1024;  //buffer size
       byte buffe[bufferSize];          //buffe
-      while (file.available()) {
-        size_t bytesRead = file.read(buffe, bufferSize);
-        client.write(buffe, bytesRead);
+      while(true){
+        if(wait()){
+          WEBworking = true;
+          if(!file.available() || !client.connected()){
+            file.close();
+            WEBworking = false;
+            break;
+          }else{
+            size_t bytesRead = file.read(buffe, bufferSize);
+            WEBworking = false;
+            client.write(buffe, bytesRead);
+          }
+        }else{
+          return;
+        }
       }
-      file.close();
     } else {  //File not Found
       client.println("HTTP/1.1 404 Not Found");
       client.println("Connection: close");
@@ -599,7 +671,7 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
         errormessage = "Cannot delete " + rmpath;
       }
     } else {  //file
-      if (!sd.remove(rmpath)) {
+      if (!SD.remove(rmpath)) {
         errormessage = "Cannot delete " + rmpath + "/";
       }
     }
@@ -612,7 +684,7 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
     String Oldname = path + cmdfilename;
     if (Newname.endsWith("/") ^ Oldname.endsWith("/")) {
       errormessage = "Either \"/\" is missing or surplus.";
-    } else if (!sd.rename(Oldname, Newname)) {
+    } else if (!SD.rename(Oldname, Newname)) {
       errormessage = "Cannot rename " + Oldname + "to" + "Newname";
     }
   }
