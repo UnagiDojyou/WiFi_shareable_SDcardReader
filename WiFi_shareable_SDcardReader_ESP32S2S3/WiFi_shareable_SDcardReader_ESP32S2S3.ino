@@ -5,10 +5,10 @@
 /*
   What is USB_REFRESH?
 USB_REFRESH disconnects the storage from the host for a moment.
-When USB is connected to Windows and you change files via WiFi, the changes are not applied to the Windows side.
-Becase of Windows has cache of file list. When the storage is reconnected, Windows refresh cache. So, USB_REFRESH is need.
+When USBmsc(Mass Storage Class) is connected to Windows and you change files via WiFi, the changes are not applied to the Windows side.
+This is because Windows has a cache of file lists. When the storage is reconnected, Windows refresh cache. So USB_REFRESH is need.
 
-If neither SCSI_REFRESH nor USB_REFRESH is selected, no USB_REFRESH is occur.
+If neither SCSI_REFRESH nor USB_REFRESH is selected, USB_REFRESH don't occur.
 */
 #define SCSI_REFRESH // (recommend) Temporarily disconnect the SCSI storage.
 // #define USB_REFRESH  // Temporarily disable the USB.
@@ -108,7 +108,7 @@ void startUSB(void *pvParameters) {
 #endif
   Serial.println("Initializing MSC");
   // Initialize USB metadata and callbacks for MSC (Mass Storage Class)
-  USB.usbPower(100);     // 100mA
+  USB.usbPower(500);     // 500mA
   USB.usbAttributes(0);  // no Self powered
   msc.vendorID("ESP32");
   msc.productID("USB_MSC");
@@ -190,8 +190,6 @@ void setup() {
 
   startWiFi();
   server.begin();  //start the server
-  Serial.print("\nHTTP server started at: ");
-  Serial.println(WiFi.localIP());
 }
 
 bool wait_media_present_accessed = false;

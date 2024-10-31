@@ -110,8 +110,6 @@ void setup1() {
   delay(10);
   startWiFi();
   server.begin();  //start the server
-  Serial1.print("\nHTTP server started at: ");
-  Serial1.println(WiFi.localIP());
 }
 
 bool led = false;
