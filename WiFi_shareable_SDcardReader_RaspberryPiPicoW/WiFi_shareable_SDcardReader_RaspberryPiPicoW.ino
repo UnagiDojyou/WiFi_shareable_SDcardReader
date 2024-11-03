@@ -10,6 +10,11 @@
 
 #define CP_BOARDNAME "shareableSDReader"
 #define CP_HTMLTITLE "WiFi Setting"
+
+const int _MISO = 4;  // AKA SPI RX
+const int _MOSI = 7;  // AKA SPI TX
+const int chipSelect = 5;
+const int _SCK = 6;
 // -----------------------------------------------------
 
 #include <SdFat.h>
@@ -17,10 +22,6 @@
 #include <WiFi.h>
 #include "CheckAndResponse.h"
 #include <Captive_Portal_WiFi_connector.h>
-const int _MISO = 4;  // AKA SPI RX
-const int _MOSI = 7;  // AKA SPI TX
-const int chipSelect = 5;
-const int _SCK = 6;
 
 CPWiFiConfigure CPWiFi(WIFI_BUTTON, WIFI_LED, Serial1);
 WiFiServer server(80);

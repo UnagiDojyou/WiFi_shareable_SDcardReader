@@ -3,6 +3,18 @@
 
 // ---------------user definition----------------------
 /*
+  SPI Pin (ESP32 S3)
+CS-10
+MOSI-11
+MISO-13
+SCLK-12
+
+  SPI Pin (ESP32 S2)
+CS-34
+MOSI-35
+MISO-37
+SCLK-36
+
   What is USB_REFRESH?
 USB_REFRESH disconnects the storage from the host for a moment.
 When USBmsc(Mass Storage Class) is connected to Windows and you change files via WiFi, the changes are not applied to the Windows side.
@@ -17,8 +29,8 @@ If neither SCSI_REFRESH nor USB_REFRESH is selected, USB_REFRESH don't occur.
 
 #define WIFI_BUTTON 0  // GPIO of WiFi reset button
 
-#define WIFI_LED 48
-#define SD_LED 48
+#define WIFI_LED LED_BUILTIN
+#define SD_LED LED_BUILTIN
 
 #define CP_BOARDNAME "shareableSDReader"
 #define CP_HTMLTITLE "WiFi Setting"
@@ -46,8 +58,6 @@ CPWiFiConfigure CPWiFi(WIFI_BUTTON, WIFI_LED, Serial);
 WiFiServer server(80);
 SdFat sdUSB;
 SdFat sd;
-// SdFile rootS;
-// SdFile fileS;
 USBMSC msc;
 
 uint16_t updateCount = 0;
@@ -169,12 +179,12 @@ void startWiFi() {
     }
     count++;
   }
-  digitalWrite(WIFI_LED, LOW);
-  led = false;
   Serial.println("");
   Serial.println("WiFi connected.");
   Serial.print("IP is ");
   Serial.println(WiFi.localIP());
+  digitalWrite(WIFI_LED, LOW);
+  led = false;
 }
 
 // the setup function runs once when you press reset or power the board
@@ -191,14 +201,14 @@ void setup() {
     uint8_t count = 0;
     while (count < 100) {
       digitalWrite(SD_LED, HIGH);
-      delay(500);
+      delay(100);
       digitalWrite(SD_LED, LOW);
-      delay(500);
+      delay(100);
       count++;
     }
     ESP.restart();
   }
-
+  digitalWrite(WIFI_LED, LOW);
   xTaskCreate(startUSB, "startUSB", 4096, NULL, 2, NULL);
 
   startWiFi();
@@ -213,7 +223,13 @@ void loop() {
     ESP.restart();
   }
   WiFiClient client = server.available();
+  if (client.available() || updateCount == 0) {
+    digitalWrite(SD_LED, HIGH);
+  }
   CheckAndResponse(client);
+  if (updateCount > 0) {
+    digitalWrite(SD_LED, LOW);
+  }
   if (updateCount >= UINT16_MAX && needFlush) {
     sdUSB.card()->syncDevice();
     // sdUSB.cacheClear();

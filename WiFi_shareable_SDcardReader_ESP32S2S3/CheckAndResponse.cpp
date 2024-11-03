@@ -348,7 +348,7 @@ void process_request(WiFiEthernetClient& client, String request) {
       const size_t bufferSize = BufferSize;  //buffer size
       uint8_t buffe[bufferSize];                //buffe
       unsigned int countb = 0;
-      const int misslimit = 2048;
+      const int misslimit = 4096;
       int misscount = 0;
 
       while (ContentLength > finish_count && misscount < misslimit) {
