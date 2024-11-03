@@ -44,6 +44,7 @@ If neither SCSI_REFRESH nor USB_REFRESH is selected, USB_REFRESH don't occur.
 
 CPWiFiConfigure CPWiFi(WIFI_BUTTON, WIFI_LED, Serial);
 WiFiServer server(80);
+SdFat sdUSB;
 SdFat sd;
 // SdFile rootS;
 // SdFile fileS;
@@ -69,7 +70,7 @@ static int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t *buffer, uint32_t 
   //   }
   // }
   bool rc;
-  rc = sd.card()->writeSectors(lba, buffer, bufsize / 512);
+  rc = sdUSB.card()->writeSectors(lba, buffer, bufsize / 512);
   // return bufsize;
   return rc ? bufsize : -1;
 }
@@ -88,7 +89,7 @@ static int32_t onRead(uint32_t lba, uint32_t offset, void *buffer, uint32_t bufs
   // }
   // return bufsize;
   bool rc;
-  rc = sd.card()->readSectors(lba, (uint8_t *)buffer, bufsize / 512);
+  rc = sdUSB.card()->readSectors(lba, (uint8_t *)buffer, bufsize / 512);
   return rc ? bufsize : -1;
 }
 
@@ -129,7 +130,7 @@ void startUSB(void *pvParameters) {
   msc.onWrite(onWrite);
   msc.onStartStop(onStartStop);
   msc.mediaPresent(true);
-  msc.begin(sd.card()->sectorCount(), 512);
+  msc.begin(sdUSB.card()->sectorCount(), 512);
   POSTflagd = false;
   USB.begin();
   USB.onEvent(usbEventCallback);
@@ -185,7 +186,7 @@ void setup() {
   pinMode(SD_LED, OUTPUT);
 
   Serial.println("Mounting SDcard");
-  if (!sd.begin(chipSelect, SD_SCK_MHZ(50))) {
+  if (!sdUSB.begin(chipSelect, SD_SCK_MHZ(50)) || !sd.begin(chipSelect, SD_SCK_MHZ(50))) {
     Serial.println("Mount Failed");
     uint8_t count = 0;
     while (count < 100) {
@@ -214,8 +215,8 @@ void loop() {
   WiFiClient client = server.available();
   CheckAndResponse(client);
   if (updateCount >= UINT16_MAX && needFlush) {
-    sd.card()->syncDevice();
-    // sd.cacheClear();
+    sdUSB.card()->syncDevice();
+    // sdUSB.cacheClear();
     needFlush = false;
   }
 #if !defined SCSI_REFRESH && !defined USB_REFRESH
