@@ -134,7 +134,9 @@ void setup() {
   uint32_t block_count = sdUSB.card()->sectorCount();
   msc.setCapacity(block_count, 512);
   msc.begin();
+}
 
+void setup1() {
   startWiFi();
   server.begin();  //start the server
   Serial1.print("\nHTTP server started at: ");
@@ -145,6 +147,9 @@ bool wait_media_present_accessed = false;
 bool mediaPresent = true;
 
 void loop() {
+}
+
+void loop1() {
   if (CPWiFi.readButton()) {
     rp2040.reboot();
   }
