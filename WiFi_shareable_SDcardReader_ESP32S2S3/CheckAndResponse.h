@@ -2,7 +2,7 @@
 #define CHECHANDRESPONSE_H
 
 //you could chose readwrite\readonly
-#define readrite
+#define readwrite
 
 //you could chose UseWiFi/UseEthernet
 #define UseWiFi
@@ -21,12 +21,14 @@
   #define WiFiEthernetClient EthernetClient
 #endif
 
-#include <SD.h>
+#include <SdFat.h>
 #include <SPI.h>
 
 extern bool POSTflagd;
+extern SdFat sd;
 
 bool CheckAndResponse(WiFiEthernetClient &client);
+
 
 void process_request(WiFiEthernetClient& client, String request);
 
