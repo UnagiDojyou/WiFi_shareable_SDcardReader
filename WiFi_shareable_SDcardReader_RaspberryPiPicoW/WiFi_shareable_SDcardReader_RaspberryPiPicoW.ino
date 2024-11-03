@@ -97,11 +97,7 @@ void setup() {
   msc.setID("Adafruit", "SD Card", "1.0");
   msc.setReadWriteCallback(msc_read_cb, msc_write_cb, msc_flush_cb);
   msc.setUnitReady(true);
-#if SD_FAT_VERSION >= 20000
   uint32_t block_count = sd.card()->sectorCount();
-#else
-  uint32_t block_count = sd.card()->cardSize();
-#endif
   msc.setCapacity(block_count, 512);
   msc.begin();
 }
@@ -178,12 +174,7 @@ int32_t msc_read_cb(uint32_t lba, void* buffer, uint32_t bufsize) {
   }
 
   bool rc;
-
-#if SD_FAT_VERSION >= 20000
   rc = sd.card()->readSectors(lba, (uint8_t*)buffer, bufsize / 512);
-#else
-  rc = sd.card()->readBlocks(lba, (uint8_t*)buffer, bufsize / 512);
-#endif
   USBworking = false;
 
   return rc ? bufsize : -1;
@@ -208,26 +199,17 @@ int32_t msc_write_cb(uint32_t lba, uint8_t* buffer, uint32_t bufsize) {
   }
 
   bool rc;
-
-#if SD_FAT_VERSION >= 20000
   rc = sd.card()->writeSectors(lba, buffer, bufsize / 512);
-#else
-  rc = sd.card()->writeBlocks(lba, buffer, bufsize / 512);
-#endif
   return rc ? bufsize : -1;
 }
 
 // Callback invoked when WRITE10 command is completed (status received and accepted by host).
 // used to flush any pending cache.
 void msc_flush_cb(void) {
-#if SD_FAT_VERSION >= 20000
   sd.card()->syncDevice();
-#else
-  sd.card()->syncBlocks();
-#endif
 
   // clear file system's cache to force refresh
-  sd.cacheClear();
+  // sd.cacheClear();
 
   USBworking = false;
 }

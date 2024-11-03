@@ -9,6 +9,10 @@
 #include <SdFat.h>
 #include <SPI.h>
 
+#if USE_UTF8_LONG_NAMES == 0
+#error Enable USE_UTF8_LONG_NAMES in \libraries\SdFat\src\SdFatConfig.h
+#endif
+
 //SdFat sd;
 SdFile file;
 SdFile root;

@@ -23,6 +23,7 @@ If neither SCSI_REFRESH nor USB_REFRESH is selected, USB_REFRESH don't occur.
 #define CP_BOARDNAME "shareableSDReader"
 #define CP_HTMLTITLE "WiFi Setting"
 // -----------------------------------------------------
+#define chipSelect 10
 
 #if !SOC_USB_OTG_SUPPORTED || ARDUINO_USB_MODE
 #error Device does not support USB_OTG or native USB CDC/JTAG is selected
@@ -32,7 +33,7 @@ If neither SCSI_REFRESH nor USB_REFRESH is selected, USB_REFRESH don't occur.
 #error Please select only one of SCSI_REFRESH and USB_REFRESH.
 #endif
 
-#include <SD.h>
+#include <SdFat.h>
 #include <USB.h>
 #include "USBMSC.h"
 #include <WiFi.h>
@@ -43,41 +44,52 @@ If neither SCSI_REFRESH nor USB_REFRESH is selected, USB_REFRESH don't occur.
 
 CPWiFiConfigure CPWiFi(WIFI_BUTTON, WIFI_LED, Serial);
 WiFiServer server(80);
+SdFat sd;
+// SdFile rootS;
+// SdFile fileS;
 USBMSC msc;
 
 uint16_t updateCount = 0;
 bool POSTflagd = false;
+bool needFlush = false;
 
 static int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t *buffer, uint32_t bufsize) {
   updateCount = 0;
-  uint32_t secSize = SD.sectorSize();
-  if (!secSize) {
-    return false;  // disk error
-  }
+  needFlush = true;
+  // uint32_t secSize = SD.sectorSize();
+  // if (!secSize) {
+  //   return false;  // disk error
+  // }
   log_v("Write lba: %ld\toffset: %ld\tbufsize: %ld", lba, offset, bufsize);
-  for (int x = 0; x < bufsize / secSize; x++) {
-    uint8_t blkbuffer[secSize];
-    memcpy(blkbuffer, (uint8_t *)buffer + secSize * x, secSize);
-    if (!SD.writeRAW(blkbuffer, lba + x)) {
-      return false;
-    }
-  }
-  return bufsize;
+  // for (int x = 0; x < bufsize / secSize; x++) {
+  //   uint8_t blkbuffer[secSize];
+  //   memcpy(blkbuffer, (uint8_t *)buffer + secSize * x, secSize);
+  //   if (!SD.writeRAW(blkbuffer, lba + x)) {
+  //     return false;
+  //   }
+  // }
+  bool rc;
+  rc = sd.card()->writeSectors(lba, buffer, bufsize / 512);
+  // return bufsize;
+  return rc ? bufsize : -1;
 }
 
 static int32_t onRead(uint32_t lba, uint32_t offset, void *buffer, uint32_t bufsize) {
   updateCount = 0;
-  uint32_t secSize = SD.sectorSize();
-  if (!secSize) {
-    return false;  // disk error
-  }
+  // uint32_t secSize = SD.sectorSize();
+  // if (!secSize) {
+  //   return false;  // disk error
+  // }
   log_v("Read lba: %ld\toffset: %ld\tbufsize: %ld\tsector: %lu", lba, offset, bufsize, secSize);
-  for (int x = 0; x < bufsize / secSize; x++) {
-    if (!SD.readRAW((uint8_t *)buffer + (x * secSize), lba + x)) {
-      return false;  // outside of volume boundary
-    }
-  }
-  return bufsize;
+  // for (int x = 0; x < bufsize / secSize; x++) {
+  //   if (!SD.readRAW((uint8_t *)buffer + (x * secSize), lba + x)) {
+  //     return false;  // outside of volume boundary
+  //   }
+  // }
+  // return bufsize;
+  bool rc;
+  rc = sd.card()->readSectors(lba, (uint8_t *)buffer, bufsize / 512);
+  return rc ? bufsize : -1;
 }
 
 static bool onStartStop(uint8_t power_condition, bool start, bool load_eject) {
@@ -117,7 +129,7 @@ void startUSB(void *pvParameters) {
   msc.onWrite(onWrite);
   msc.onStartStop(onStartStop);
   msc.mediaPresent(true);
-  msc.begin(SD.numSectors(), SD.sectorSize());
+  msc.begin(sd.card()->sectorCount(), 512);
   POSTflagd = false;
   USB.begin();
   USB.onEvent(usbEventCallback);
@@ -173,7 +185,7 @@ void setup() {
   pinMode(SD_LED, OUTPUT);
 
   Serial.println("Mounting SDcard");
-  if (!SD.begin()) {
+  if (!sd.begin(chipSelect, SD_SCK_MHZ(50))) {
     Serial.println("Mount Failed");
     uint8_t count = 0;
     while (count < 100) {
@@ -201,6 +213,16 @@ void loop() {
   }
   WiFiClient client = server.available();
   CheckAndResponse(client);
+  if (updateCount >= UINT16_MAX && needFlush) {
+    sd.card()->syncDevice();
+    // sd.cacheClear();
+    needFlush = false;
+  }
+#if !defined SCSI_REFRESH && !defined USB_REFRESH
+  else if (updateCount < UINT16_MAX) {
+    updateCount++;
+  }
+#endif
 
 #ifdef SCSI_REFRESH
   if (updateCount >= UINT16_MAX && POSTflagd) {

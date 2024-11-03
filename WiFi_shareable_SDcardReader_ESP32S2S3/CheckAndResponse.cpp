@@ -6,8 +6,16 @@
   #include <Ethernet.h>
 #endif
 
-#include <SD.h>
+#include <SdFat.h>
 #include <SPI.h>
+
+#if USE_UTF8_LONG_NAMES == 0
+#error Enable USE_UTF8_LONG_NAMES in \libraries\SdFat\src\SdFatConfig.h
+#endif
+
+//SdFat sd;
+SdFile file;
+SdFile root;
 
 // decode %URL
 String urlDecode(String str) {
@@ -313,7 +321,14 @@ void process_request(WiFiEthernetClient& client, String request) {
       String filename = path + request;
       //setting upload file
       newfilename = path + newfilename;
-      File file = SD.open(newfilename, FILE_WRITE);
+      unsigned int len = newfilename.length() + 1; //string to char
+      char pathchar[len];
+      newfilename.toCharArray(pathchar, len);
+      file.open(pathchar, FILE_WRITE);
+      if (!file) {
+        errormessage = "cannot make now file.";
+        Serial.println(errormessage);
+      }
       while (client.available()) {
         char c = client.read();
         //Serial.write(c);
@@ -331,8 +346,8 @@ void process_request(WiFiEthernetClient& client, String request) {
       int finish_count = boundary.length() + 3 + 11;  //use client check
       //const int filesize = ContentLength - boundary.length() - 3 - 11; //use file check
       const size_t bufferSize = BufferSize;  //buffer size
-      byte buffe[bufferSize];                //buffe
-      int countb = 0;
+      uint8_t buffe[bufferSize];                //buffe
+      unsigned int countb = 0;
       const int misslimit = 2048;
       int misscount = 0;
 
@@ -415,7 +430,7 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
     if (!path.equals("/")) {
       path.remove(path.length() - 1);  //delet last "/"
     }
-    if (SD.exists(path)) {  //check path is exist
+    if (sd.exists(path)) {  //check path is exist
       client.println("HTTP/1.1 200 OK");
       client.println("Content-Type: text/html");
       client.println("Connection: close");
@@ -493,14 +508,17 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
       }
       client.print("<hr>");
       //list up directory contents
-      File dir = SD.open(path);
-      while (true) {
-        File entry = dir.openNextFile();
-        if (!entry) {
-          break;
-        }
-        String filename = entry.name();
-        if (entry.isDirectory()) {
+      int len = path.length() + 1; //string to char
+      char pathchar[len]; 
+      path.toCharArray(pathchar, len);
+
+      root.open(pathchar);
+      //root.getName(char *name, size_t size)
+      while (file.openNext(&root, O_RDONLY)) {
+        char filenamechar[50];
+        file.getName(filenamechar,sizeof(filenamechar));
+        String filename = filenamechar;
+        if (file.isDir()) {
           filename += "/";
         }
         String fileurl = "http://" + IPaddr + urlEncode(path);
@@ -517,16 +535,16 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
         client.println("</a>");
         if (!filename.endsWith("/")) {  //display file size
           client.print(" ");
-          client.println(kmgt(entry.size()));
+          client.println(kmgt(file.fileSize()));
         }
         client.println("</p>");
-        entry.close();
+        file.close();
       }
-      dir.close();
+      root.close();
       client.print("<hr>");
       client.print("<p>");
       client.print("Powered by ");
-      client.print("<a href=\"https://github.com/UnagiDojyou/ArduinoIDE_SD_FAT32_Fileserver\">ArduinoIDE_SD_FAT32_Fileserver</a>");
+      client.print("<a href=\"https://github.com/UnagiDojyou/ArduinoIDE_SD_FAT32_Fileserver/tree/Sdfat\">ArduinoIDE_SdFat_FAT32_Fileserver</a>");
       client.println("</p>");
       client.println("</body>");
       client.println("</html>");
@@ -535,12 +553,17 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
       client.println("Connection: close");
     }
   } else if (!POSTflag) {  //File
-    if (SD.exists(path)) {
+    if (sd.exists(path)) {
       Serial.print("File:");
       Serial.println(path);
       String extension = getExtension(getFilename(path));
-      File file = SD.open(path);
-      unsigned long filesize = file.size();
+
+      int len = path.length() + 1; //string to char
+      char pathchar[len]; 
+      path.toCharArray(pathchar, len);
+
+      file.open(pathchar);
+      unsigned long filesize = file.fileSize();
       client.println("HTTP/1.1 200 OK");
       client.print("Content-Length: ");
       client.println(filesize);
@@ -572,7 +595,7 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
     String newdir = path + cmdfilename;
     Serial.print("mkdir:");
     Serial.println(newdir);
-    if (!SD.mkdir(newdir)) {
+    if (!sd.mkdir(newdir)) {
       errormessage = "Cannot make " + newdir;
     }
   } else if (POSTflag && request.indexOf("delete=delete") > -1) {  //delete
@@ -581,15 +604,15 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
     Serial.print("delete:");
     Serial.println(rmpath);
     if (cmdfilename.endsWith("/")) {  //directory
-      if (!SD.rmdir(rmpath.substring(0, rmpath.length() - 1))) {
+      if (!sd.rmdir(rmpath.substring(0, rmpath.length() - 1))) {
         errormessage = "Cannot delete " + rmpath;
       }
     } else {  //file
-      if (!SD.remove(rmpath)) {
+      if (!sd.remove(rmpath)) {
         errormessage = "Cannot delete " + rmpath + "/";
       }
     }
-  } 
+  }
   
   #ifndef DisableRename
   else if (POSTflag && request.indexOf("rename=rename") > -1) {  //rename
@@ -598,7 +621,7 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
     String Oldname = path + cmdfilename;
     if (Newname.endsWith("/") ^ Oldname.endsWith("/")) {
       errormessage = "Either \"/\" is missing or surplus.";
-    } else if (!SD.rename(Oldname, Newname)) {
+    } else if (!sd.rename(Oldname, Newname)) {
       errormessage = "Cannot rename " + Oldname + "to" + "Newname";
     }
   }
