@@ -621,8 +621,24 @@ void sendHTTP(WiFiEthernetClient& client, const String& request) {
     String Oldname = path + cmdfilename;
     if (Newname.endsWith("/") ^ Oldname.endsWith("/")) {
       errormessage = "Either \"/\" is missing or surplus.";
-    } else if (!sd.rename(Oldname, Newname)) {
-      errormessage = "Cannot rename " + Oldname + "to" + "Newname";
+    // } else if (!sd.rename(Oldname, Newname)) {
+    //   errormessage = "Cannot rename " + Oldname + "to" + "Newname";
+    //   Serial.println(errormessage);
+    // }
+    } else {
+      int Oldlen = Oldname.length() + 1; //string to char
+      int Newlen = Newname.length() + 1; //string to char
+      char Oldnamechar[Newlen];
+      char Newnamechar[Oldlen];
+      Oldname.toCharArray(Oldnamechar, Oldlen);
+      Newname.toCharArray(Newnamechar, Newlen);
+
+      file.open(Oldnamechar);
+      if (!file.rename(Newnamechar)) {
+        errormessage = "Cannot rename " + Oldname + "to" + "Newname";
+        Serial.println(errormessage);
+      }
+      file.close();
     }
   }
   #endif

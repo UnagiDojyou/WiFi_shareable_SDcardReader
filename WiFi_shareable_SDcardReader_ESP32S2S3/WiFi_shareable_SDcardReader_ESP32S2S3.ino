@@ -27,6 +27,8 @@ If neither SCSI_REFRESH nor USB_REFRESH is selected, USB_REFRESH don't occur.
 
 #define REFRESH_TIME_LENGTH 2000  // length of disconnection time (ms)
 
+#define RESET_COUNT UINT16_MAX
+
 #define WIFI_BUTTON 0  // GPIO of WiFi reset button
 
 #define WIFI_LED LED_BUILTIN
@@ -35,7 +37,20 @@ If neither SCSI_REFRESH nor USB_REFRESH is selected, USB_REFRESH don't occur.
 #define CP_BOARDNAME "shareableSDReader"
 #define CP_HTMLTITLE "WiFi Setting"
 // -----------------------------------------------------
-#define chipSelect 10
+
+#if CONFIG_IDF_TARGET_ESP32S3
+int sck = 12;
+int miso = 13;
+int mosi = 11;
+int cs = 10;
+#endif
+
+#if CONFIG_IDF_TARGET_ESP32S2
+int sck = 36;
+int miso = 37;
+int mosi = 35;
+int cs = 34;
+#endif
 
 #if !SOC_USB_OTG_SUPPORTED || ARDUINO_USB_MODE
 #error Device does not support USB_OTG or native USB CDC/JTAG is selected
@@ -67,18 +82,7 @@ bool needFlush = false;
 static int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t *buffer, uint32_t bufsize) {
   updateCount = 0;
   needFlush = true;
-  // uint32_t secSize = SD.sectorSize();
-  // if (!secSize) {
-  //   return false;  // disk error
-  // }
   log_v("Write lba: %ld\toffset: %ld\tbufsize: %ld", lba, offset, bufsize);
-  // for (int x = 0; x < bufsize / secSize; x++) {
-  //   uint8_t blkbuffer[secSize];
-  //   memcpy(blkbuffer, (uint8_t *)buffer + secSize * x, secSize);
-  //   if (!SD.writeRAW(blkbuffer, lba + x)) {
-  //     return false;
-  //   }
-  // }
   bool rc;
   rc = sdUSB.card()->writeSectors(lba, buffer, bufsize / 512);
   // return bufsize;
@@ -87,17 +91,7 @@ static int32_t onWrite(uint32_t lba, uint32_t offset, uint8_t *buffer, uint32_t 
 
 static int32_t onRead(uint32_t lba, uint32_t offset, void *buffer, uint32_t bufsize) {
   updateCount = 0;
-  // uint32_t secSize = SD.sectorSize();
-  // if (!secSize) {
-  //   return false;  // disk error
-  // }
   log_v("Read lba: %ld\toffset: %ld\tbufsize: %ld\tsector: %lu", lba, offset, bufsize, secSize);
-  // for (int x = 0; x < bufsize / secSize; x++) {
-  //   if (!SD.readRAW((uint8_t *)buffer + (x * secSize), lba + x)) {
-  //     return false;  // outside of volume boundary
-  //   }
-  // }
-  // return bufsize;
   bool rc;
   rc = sdUSB.card()->readSectors(lba, (uint8_t *)buffer, bufsize / 512);
   return rc ? bufsize : -1;
@@ -194,9 +188,9 @@ void setup() {
 
   pinMode(WIFI_LED, OUTPUT);
   pinMode(SD_LED, OUTPUT);
-
+  SPI.begin(sck, miso, mosi, cs);
   Serial.println("Mounting SDcard");
-  if (!sdUSB.begin(chipSelect, SD_SCK_MHZ(50)) || !sd.begin(chipSelect, SD_SCK_MHZ(50))) {
+  if (!sdUSB.begin() || !sd.begin()) {
     Serial.println("Mount Failed");
     uint8_t count = 0;
     while (count < 100) {
@@ -223,26 +217,27 @@ void loop() {
     ESP.restart();
   }
   WiFiClient client = server.available();
-  if (client.available() || updateCount == 0) {
+  if (client.available()) {
+    updateCount = 0;
     digitalWrite(SD_LED, HIGH);
   }
   CheckAndResponse(client);
   if (updateCount > 0) {
     digitalWrite(SD_LED, LOW);
   }
-  if (updateCount >= UINT16_MAX && needFlush) {
+  if (updateCount >= RESET_COUNT && needFlush) {
     sdUSB.card()->syncDevice();
     // sdUSB.cacheClear();
     needFlush = false;
   }
 #if !defined SCSI_REFRESH && !defined USB_REFRESH
-  else if (updateCount < UINT16_MAX) {
+  else if (updateCount < RESET_COUNT) {
     updateCount++;
   }
 #endif
 
 #ifdef SCSI_REFRESH
-  if (updateCount >= UINT16_MAX && POSTflagd) {
+  if (updateCount >= RESET_COUNT && POSTflagd) {
     if (!wait_media_present_accessed) {                   // first
       media_present_accessed = false;                     // when accessed, automaticly true.
       wait_media_present_accessed = true;                 // flag of waiting media_present_accessed to be high
@@ -259,7 +254,7 @@ void loop() {
       POSTflagd = false;
       updateCount = 0;
     }
-  } else if (updateCount < UINT16_MAX) {
+  } else if (updateCount < RESET_COUNT) {
     updateCount++;
     if (POSTflagd && !mediaPresent) {
       media_present_accessed = true;
@@ -268,18 +263,18 @@ void loop() {
   }
 #endif
 #ifdef USB_REFRESH
-  if ((updateCount >= UINT16_MAX) && POSTflagd) {
+  if ((updateCount >= RESET_COUNT) && POSTflagd) {
+    sdUSB.card()->syncDevice();
+    // delay(1000);
+    // ESP.restart();
     if (!wait_media_present_accessed) {                   // first
       media_present_accessed = false;                     // when accessed, automaticly true.
       wait_media_present_accessed = true;                 // flag of waiting media_present_accessed to be high
     } else if (media_present_accessed && mediaPresent) {  // second
       ESP.restart();
     }
-  } else if (updateCount < UINT16_MAX) {
+  } else if (updateCount < RESET_COUNT) {
     updateCount++;
-    if (POSTflagd && !mediaPresent) {
-      media_present_accessed = true;
-      wait_media_present_accessed = false;
     }
   }
 #endif
