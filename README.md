@@ -23,6 +23,7 @@ Enable Raspberry Pi Pico W and ESP32 S2, S3 to function as a USB SD card reader.
 * Initialize the SD card to FAT32 in advance.
 * Connect the SD card properly
 ### ESP32 S2,S3
+* Board have to be 'ESP32S2 Dev Module' or 'ESP32S3 Dev Module'.
 * Select tool→Flash Size→Choose the one that suits your board.
 * Select tool→Partition Scheme→Select the one that included SPIFFS and appropriate Flash Size.
 * Select tool→USB Stack→"USB-OTG (TinyUSB)"

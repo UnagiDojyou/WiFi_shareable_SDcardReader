@@ -39,17 +39,11 @@ If neither SCSI_REFRESH nor USB_REFRESH is selected, USB_REFRESH don't occur.
 // -----------------------------------------------------
 
 #if CONFIG_IDF_TARGET_ESP32S3
-int sck = 12;
-int miso = 13;
-int mosi = 11;
-int cs = 10;
+#define CHIPSELECT 10
 #endif
 
 #if CONFIG_IDF_TARGET_ESP32S2
-int sck = 36;
-int miso = 37;
-int mosi = 35;
-int cs = 34;
+#define CHIPSELECT 34
 #endif
 
 #if !SOC_USB_OTG_SUPPORTED || ARDUINO_USB_MODE
@@ -188,9 +182,8 @@ void setup() {
 
   pinMode(WIFI_LED, OUTPUT);
   pinMode(SD_LED, OUTPUT);
-  SPI.begin(sck, miso, mosi, cs);
   Serial.println("Mounting SDcard");
-  if (!sdUSB.begin() || !sd.begin()) {
+  if (!sdUSB.begin(CHIPSELECT) || !sd.begin(CHIPSELECT)) {
     Serial.println("Mount Failed");
     uint8_t count = 0;
     while (count < 100) {
