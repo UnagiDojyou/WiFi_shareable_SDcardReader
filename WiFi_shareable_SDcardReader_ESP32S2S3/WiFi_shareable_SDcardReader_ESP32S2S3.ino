@@ -22,17 +22,17 @@ This is because Windows has a cache of file lists. When the storage is reconnect
 
 If neither SCSI_REFRESH nor USB_REFRESH is selected, USB_REFRESH don't occur.
 */
-#define SCSI_REFRESH // (recommend) Temporarily disconnect the SCSI storage.
-// #define USB_REFRESH  // Temporarily disable the USB.
+// #define SCSI_REFRESH // (recommend) Temporarily disconnect the SCSI storage.
+#define USB_REFRESH  // Temporarily disable the USB.
 
-#define REFRESH_TIME_LENGTH 2000  // length of disconnection time (ms)
+#define REFRESH_TIME_LENGTH 10000  // length of disconnection time (ms)
 
 #define RESET_COUNT UINT16_MAX
 
 #define WIFI_BUTTON 0  // GPIO of WiFi reset button
 
-#define WIFI_LED LED_BUILTIN
-#define SD_LED LED_BUILTIN
+#define WIFI_LED 15
+#define SD_LED 15
 
 #define CP_BOARDNAME "shareableSDReader"
 #define CP_HTMLTITLE "WiFi Setting"
@@ -44,6 +44,10 @@ If neither SCSI_REFRESH nor USB_REFRESH is selected, USB_REFRESH don't occur.
 
 #if CONFIG_IDF_TARGET_ESP32S2
 #define CHIPSELECT 34
+#endif
+
+#if ARDUINO_USB_CDC_ON_BOOT
+#error Selected board will enable USB-CDC, select ESP32S2 Dev Module' or 'ESP32S3 Dev Module'.
 #endif
 
 #if !SOC_USB_OTG_SUPPORTED || ARDUINO_USB_MODE
@@ -212,6 +216,8 @@ void loop() {
   WiFiClient client = server.available();
   if (client.available()) {
     updateCount = 0;
+  }
+  if (updateCount == 0) {
     digitalWrite(SD_LED, HIGH);
   }
   CheckAndResponse(client);
@@ -268,7 +274,10 @@ void loop() {
     }
   } else if (updateCount < RESET_COUNT) {
     updateCount++;
-    }
+    // if (POSTflagd && !mediaPresent) {
+    //   media_present_accessed = true;
+    //   wait_media_present_accessed = false;
+    // }
   }
 #endif
 }
